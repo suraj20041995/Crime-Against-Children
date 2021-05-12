@@ -9,3 +9,6 @@ https://phantomjs.org/download.html
 3. Place the folder "data" and the project file in the same directory
 
 4. Run the file "Markdown Code.rmd" in RStudio
+
+
+You can get the overview of the project without runing the file by accessing the fiile "Report.pdf"
