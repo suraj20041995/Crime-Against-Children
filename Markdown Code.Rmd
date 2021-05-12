@@ -1,0 +1,588 @@
+---
+title: "Crime against children"
+author: "Suraj Kesharwani 204161016"
+date: "4/13/2021"
+output:
+  pdf_document: default
+  word_document: default
+always_allow_html: yes
+---
+
+```{r, message=FALSE, warning=FALSE, include=FALSE}
+#Install these library if not already installed
+
+library(tidyverse)
+library(directlabels)
+library("dplyr")
+library(extrafont)
+library(ggplot2)
+library(fmsb)
+library(scales)
+library(BBmisc)
+library(RColorBrewer)
+library(treemapify)
+library("evaluate")
+library(ggmap)
+library(maps)
+library(rgdal)
+library(maptools)
+library(gridExtra)
+library(rgeos)
+library("mapproj")
+library(plotly)
+library(webshot)
+webshot::install_phantomjs()
+# might take more than 6-8 mins to run below import
+#font_import()
+#loadfonts(device = "win")
+```
+
+*This project is submitted for the course CS595 - Data Visualization. I would like to extend my sincere thanks to our course instructor Ashish Anand Sir and the TA's Vajja Sai Kiran and Akshay Parekh for their valuable and constructive suggestion during preparation of this work.*
+
+
+# **Motivation**
+
+Nowadays crimes are increasing at a high rate which is a great challenge for the police department of a city. A huge amount of data on different types of crimes taking place in different geographic locations is collected and stored annually. It is highly essential to analyze data so that potential solutions for solving and mitigating the crime incidents and predicting similar incident patterns for future becomes possible.
+
+# **Objective**
+In the report we want to ask basic question such as
+
+1. Count of crimes against children in each state of India?
+2. Which state is failing to maintain the law and order properly with respect to these type of crimes?
+3. What are the different crimes committed towards childrens?
+4. Does year wise there is a increase in crime in states and hasit decreased or increase?
+
+
+# **1. Introduction :**
+
+The Republic of India is a the second most populous country in the world. It has 28 States and 8 Union Territories. The minimum age of being an adult in India is 18 yr. India has its 36.7 population under 18.
+
+In this report we are going to perform Exploratory Data Analysis on crimes performed against children in India. There are 1248 and out of those 14 are specifically for protect and rights of children. Let us See how the law authority is working on safeguarding these.
+
+
+### Terminology Used from IPC sections of Indian Constitution 
+
+**Murder** : unlawful killing of another human without justification or valid excuse
+
+**Foeticides** : destruction or abortion of a fetus.
+
+**Infanticide** : intentional killing of infants
+
+**Abetment to Suicide** : Instigating a person to commit an offence; or. Engaging in a conspiracy to commit it
+
+**Exposure or Abandonment** : Crime by parents or others to expose or to leave them with the intention of abandonment
+
+
+**Kidnapping & Abduction** : taking someone unwillingly and keeping them illegally imprisoned without their valid consent or taking away of a child or person by deception or force from their home and family.
+
+**Procuration of  minor  girls** : taking power on behalf of another to act in his/her place. done for inducement to force or seduce to  illicit  intercourse.
+
+**Rape** : type of sexual assault usually involving sexual intercourse carried out against a person without that person's consent.
+
+
+# **2 Dataset Description :**
+
+The dataset has been taken from kaggle. It contains 2 files. First file contains the 13 type of crimes against children from 2001 to 2012 and the second file contains data for the year 2013.
+
+The first and second file contains 9015 and 823 rows respectively.
+
+```{r, include=FALSE}
+
+# Reading the files
+
+file1 <- read.csv("./data/03_District_wise_crimes_committed_against_children_2001_2012.csv")
+file2 <- read.csv("./data/03_District_wise_crimes_committed_against_children_2013.csv")
+file3 <- read.csv("./data/State Population Data Yearwise 2013.csv")
+file4 <- read.csv("./data/State Literacy Data Yearwise.csv")
+```
+
+```{r, include=FALSE}
+#Since the 1 column is missing so adding it.
+
+file1$Infanticid <- 0
+
+
+#Renaming Columns
+
+file1 <- file1 %>% rename (
+  state = STATE.UT,
+  district = DISTRICT,
+  year = Year,
+  infanticid = Infanticid,
+  murder = Murder,
+  rape = Rape,
+  kidnapping = Kidnapping.and.Abduction,
+  foeticide = Foeticide,
+  abetment_of_suicide = Abetment.of.suicide,
+  abandonment = Exposure.and.abandonment,
+  procuration_of_girls = Procuration.of.minor.girls,
+  buying_girls = Buying.of.girls.for.prostitution,
+  selling_girls = Selling.of.girls.for.prostitution,
+  child_marriage = Prohibition.of.child.marriage.act,
+  other_crimes = Other.Crimes,
+  total = Total
+  
+)
+
+#Renaming Columns
+
+file2 <- file2 %>% rename (
+  state = STATE.UT,
+  district = DISTRICT,
+  year = Year,
+  infanticid = Infanticid,
+  murder = Other.murder,
+  rape = Rape,
+  kidnapping = Kidnapping.and.Abduction,
+  foeticide = Foeticide,
+  abetment_of_suicide = Abetment.of.suicide,
+  abandonment = Exposure.and.abandonment,
+  procuration_of_girls = Procuration.of.minor.girls,
+  buying_girls = Buying.of.girls.for.prostitution,
+  selling_girls = Selling.of.girls.for.prostitution,
+  child_marriage = Prohibition.of.child.marriage.act,
+  other_crimes = Other.Crimes,
+  total = Total
+  
+)
+```
+
+
+
+```{r, echo=FALSE}
+#combining the files
+
+data <- rbind(file1, file2)
+dim(data)
+```
+
+The above is the dimension of the final data. Now let's have a glimpse of all the states in the data. 
+
+let us see the different columns about the data
+```{r, echo=FALSE}
+names(data)
+```
+
+and here are the few rows of our data
+```{r, echo=FALSE}
+head(data, 3)
+```
+
+# **3. Analysis:**
+
+
+Let's Try to analyze some columns which will be using extensively in our report
+
+
+```{r}
+# Checking th Unique States in data
+unique(data$state)
+```
+
+As we can see there is a little mismatch in number of states and UT beacuse of the spelling typed in two different way. So we will resolve it.
+
+```{r, include=FALSE,message=FALSE, warning=FALSE,error=FALSE}
+#Converting the states in lowercase
+data$state = tolower(data$state)
+
+#'a & n islands'
+data$state[data$state =='a&n islands'] <- 'a & n islands'
+
+#'d & n haveli'
+data$state[data$state == 'd&n haveli'] <- 'd & n haveli'
+
+#'delhi ut'
+data$state[data$state == 'delhi ut'] <- 'delhi'
+
+data$state = toupper(data$state)
+
+categorical_data <- data %>% select(state, total) %>% group_by(state) %>% summarise(total = sum(total))
+#categorical_data
+```
+
+let us first see the overlook in the map and the current crime intensities.
+
+```{r, include=FALSE, warning=FALSE, echo=FALSE, message=FALSE}
+map_data <- data %>% select(state, total) %>% group_by(state) %>% summarise(total = sum(total))
+map_data <- rbind(map_data, c("TELANGANA", mean(as.double(map_data$total))))
+```
+
+```{r, include=FALSE, warning=FALSE,  echo=FALSE, message=FALSE}
+states_shape = rgdal::readOGR("./data/IND_adm/IND_adm1.shp")
+#plot(states_shape, main = "Administrative Map of India")
+
+States_shape2 = readOGR("./data/IND_adm","IND_adm1")
+#plot(States_shape2)
+
+fortify_shape = fortify(states_shape, region = "ID_1")
+```
+
+```{r, include=FALSE, warning=FALSE,  echo=FALSE, message=FALSE}
+map_data <- map_data[order(map_data$state),]
+```
+
+
+```{r, include=FALSE, warning=FALSE, echo=FALSE}
+total_crime = as.double(map_data$total)
+State_data = data.frame(id=states_shape$ID_1, NAME_1=states_shape$NAME_1, total_crime)
+```
+
+```{r, fig.width=12, fig.height=10, warning=FALSE, echo=FALSE}
+fortify_shape = fortify(states_shape, region = "ID_1")
+class(fortify_shape)
+
+Merged_data = merge(fortify_shape, State_data, by="id", all.x=TRUE)
+Map_plot = Merged_data[order(Merged_data$order), ]
+
+ggplot() +
+  geom_polygon(data = Map_plot,
+           	aes(x = long, y = lat, group = group, fill = total_crime), size = 0.5) +
+  coord_map() +  scale_fill_gradient(low="white", high="red") + labs(x = "Longitude", y = "Latitude", title = "Crime wise distribution") + guides(fill=guide_legend("Total Crimes"))
+```
+
+
+*Reason : I have choosen this graph as it is agood indicator of spatial type of charts and provide a collective view of all the states at once geographically on Indian Map*
+
+As we can see the high intensity in the middle and northern India. Let's drill down to percent wise distribution.
+
+```{r warning=FALSE, fig.width=10, fig.height=8,  warning=FALSE,  echo=FALSE}
+#Donut Chart on states
+
+fig <- categorical_data %>% 
+       plot_ly(labels = ~state, values = ~total, y = 0.2) %>% 
+       add_pie(hole = 0.4) %>% 
+  
+  layout(title = "Distribution on State Basis",  showlegend = T,
+         xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+         yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+         legend = list(x = 1.2, y = 1, orientation = 'h'))
+is_pdf <- try (("pdf_document" %in% rmarkdown::all_output_formats(knitr::current_input())), silent=TRUE)
+is_pdf <- (is_pdf == TRUE)
+
+if (is_pdf) { export(fig) } else {fig}
+```
+
+
+*Reason :* I have choosen this graph as we can see the share of the crimes committed in each state
+
+We can see crime wise percent as well
+
+
+
+```{r,include=FALSE,warning=FALSE,message=FALSE,  echo=FALSE}
+Slope_Graph_fun <- function(temp3, state_name){
+  temp3 <- temp3[temp3$state == state_name,]
+  crime <-  c("infanticid", "murder", "rape", "kidnapping", "foeticide", "abetment_of_suicide", "abandonment", "procuration_of_girls", "buying_girls", "selling_girls", "child_marriage", "other_crimes")
+  year_2001 <-  c(rep(0,12))
+  year_2013 <-  c(rep(0, 12))
+  
+  d <- data.frame(crime, year_2001, year_2013)
+  for(i in (1:length(crime))){
+    cur_crime = crime[i]
+    #print(cur_crime)
+    d[d$crime == cur_crime,]['year_2001'] = temp3[temp3$year == 2001,][cur_crime]
+    d[d$crime == cur_crime,]['year_2013'] = temp3[temp3$year == 2013,][cur_crime]
+  }
+  return(d)
+}
+```
+
+
+
+```{r,include=FALSE,warning=FALSE,message=FALSE,  echo=FALSE}
+#Data prepration of pie plot
+
+temp <- data %>% select(state, year, infanticid, murder, rape, kidnapping, foeticide, abetment_of_suicide, abandonment, procuration_of_girls, buying_girls, selling_girls, child_marriage, other_crimes) %>% group_by(state, year) %>% summarise(infanticid = sum(infanticid),  murder = sum( murder), rape = sum(rape), kidnapping = sum(kidnapping), foeticide = sum(foeticide), abetment_of_suicide = sum(abetment_of_suicide), abandonment = sum(abandonment), procuration_of_girls = sum(procuration_of_girls), buying_girls = sum(buying_girls), selling_girls = sum(selling_girls), child_marriage = sum(child_marriage), other_crimes = sum(other_crimes))
+
+temp2 <- temp[temp$year == 2001,]
+temp2 <- rbind(temp2, temp[temp$year == 2013,])
+```
+
+```{r,include=FALSE,warning=FALSE,message=FALSE,  echo=FALSE}
+state_names <- unique(data$state)
+slope_data <- Slope_Graph_fun(temp2, state_names[1])
+for (i in (2:length(state_names)))
+{
+  #print(state_names[i])
+  slope_data <- rbind(slope_data, Slope_Graph_fun(temp2, state_names[i]))
+  
+}
+#slope_data
+plot_data <- slope_data %>% group_by(crime) %>% summarize(year_2001 = sum(year_2001), year_2013 = sum(year_2013))
+#plot_data
+```
+```{r,include=FALSE,warning=FALSE,message=FALSE,  echo=FALSE}
+plot_data$year_2001 <- as.integer(plot_data$year_2001)
+plot_data$year_2013 <- as.integer(plot_data$year_2013)
+#plot_data
+```
+
+
+```{r,warning=FALSE,message=FALSE,  echo=FALSE, fig.width=12, fig.height=8 }
+library(plotly)
+library(dplyr)
+
+## Donut chart
+
+
+fig1 <- plot_data %>% 
+       plot_ly(labels = ~crime, values = ~year_2001) %>% 
+       add_pie(hole = 0.56) %>% 
+  
+  layout(title = "Distribution of crime in 2001",  showlegend = T,
+         xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+         yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+         legend = list(x = 1.2, y = 1, orientation = 'h'))
+
+
+fig2 <- plot_data %>% 
+       plot_ly(labels = ~crime, values = ~year_2013) %>% 
+       add_pie(hole = 0.56) %>% 
+  
+  layout(title = "Distribution of crime in 2013",  showlegend = T,
+         xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+         yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+         legend = list(x = 1.2, y = 1, orientation = 'h'))
+is_pdf <- try (("pdf_document" %in% rmarkdown::all_output_formats(knitr::current_input())), silent=TRUE)
+is_pdf <- (is_pdf == TRUE)
+
+if (is_pdf) { export(fig1) } else {fig1}
+if (is_pdf) { export(fig2) } else {fig2}
+```
+
+
+we can try to find the top 5 states/ut in terms of committed  crime.
+
+```{r ,fig.width=12,fig.height=10,  warning=FALSE,  echo=FALSE}
+#Tree Maps
+temp <- data %>% select(state, total) %>% group_by(state) %>% summarise(total = sum(total))
+temp$total <- as.double(temp$total)
+temp <- as.data.frame(temp)
+
+
+colnames(temp) <- c("State", "Total")
+ggplot(temp, aes(area = Total, fill = Total, label = State)) +
+geom_treemap() +
+geom_treemap_text(fontface = "italic", colour = "black", place = "centre", grow = TRUE) + 
+  scale_fill_gradient(low="white", high="red") + guides(fill=guide_legend("Total Crimes"))
+```
+
+*Reason :* We can see the area wise distribution and can directly interpret the crime from size and color
+
+and finally let us confirm our observation from the actual figures.
+
+```{r, fig.width=12,fig.height=10,  warning=FALSE,  echo=FALSE}
+ggplot(data = categorical_data) + 
+geom_bar(mapping = aes(x = total, y = state),fill = '#f70d1a', stat='identity', position = position_dodge(width=0.01),size = 2.5,  width=0.4) + 
+labs(y="State", x = "Total number of crimes committed", title = "Crimes Summary") +  theme(text=element_text(size=12,  family="serif")) + 
+geom_text(aes(x = total, y = state, label = total, hjust = -0.1))
+
+```
+
+*Reason :* we can observe the exact value of the individual state in this graph
+
+
+As we can observe, "Madhya Pradesh", "Uttar Pradesh", "Maharashtra", "Delhi" & "Andhra Pradesh" are the top 5 states in the total number of  crimes.
+
+
+lets us have a look in the top 3 states crimes in which of the crimes are highest in number.
+
+```{r, include=FALSE, warning=FALSE,  echo=FALSE}
+
+#Radar Chart
+
+radar_data <- data %>% select(state, infanticid, murder, rape, kidnapping, foeticide, abetment_of_suicide, abandonment, procuration_of_girls, buying_girls, selling_girls, child_marriage, other_crimes) %>% group_by(state) %>% summarise(infanticid = sum(infanticid),  murder = sum( murder), rape = sum(rape), kidnapping = sum(kidnapping), foeticide = sum(foeticide), abetment_of_suicide = sum(abetment_of_suicide), abandonment = sum(abandonment), procuration_of_girls = sum(procuration_of_girls), buying_girls = sum(buying_girls), selling_girls = sum(selling_girls), child_marriage = sum(child_marriage), other_crimes = sum(other_crimes))
+
+radar_data[is.na(radar_data)] <- 0
+temp <- radar_data[radar_data$state == "MADHYA PRADESH",]
+temp <- rbind(temp, radar_data[radar_data$state == "UTTAR PRADESH",])
+temp <- rbind(temp, radar_data[radar_data$state == "MAHARASHTRA",])
+temp <- BBmisc::dropNamed(temp, "state")
+```
+
+```{r, fig.width=12,fig.height=10, warning=FALSE,  echo=FALSE}
+temp <- as.data.frame(temp)
+rownames(temp) <- c("Madhya Pradesh", "Uttar Pradesh", "Maharastra")
+colnames(temp) <- c("Infanticid", "Murder", "Rape", "Kidnapping", "Foeticide", "Abetment of Sucide",  "Abandonment",  "Procuration of Girls", "Buying Girls for Prostitution", "Selling Girls for Prostitution",  "Child Marriage",  "Other Crime")
+temp <- rbind(rep(62000,13), rep(0,13), temp)
+
+```
+
+```{r, fig.width=12,fig.height=10,  warning=FALSE, echo=FALSE}
+
+coul <- brewer.pal(3, "BuPu")
+#coul <- rainbow(3)
+colors_border <- coul
+colors_in <- alpha(coul,0.3)
+
+
+# plot with default options:
+radarchart( temp  , axistype=1 , 
+    #custom polygon
+    pcol=colors_border , pfcol=colors_in , plwd=4 , plty=1,
+    #custom the grid
+    cglcol="grey", cglty=1, axislabcol="grey", caxislabels=seq(0,20,5), cglwd=0.8,
+    #custom labels
+    vlcex=1.1 
+    )
+
+# Add a legend
+legend(x=0.95, y=1.2, legend = rownames(temp[-c(1,2),]), bty = "n", pch=20 , col=colors_in , text.col = "black", cex=0.9, pt.cex=3)
+```
+
+*Reason :* The radar chart will help us to visualize as which of the crime is most in each of the state.
+
+We can drill down to each of the top 5 states in the number of crimes and check which district can be the cause of this out of law situation.
+
+
+```{r,  warning=FALSE,message=FALSE,  echo=FALSE}
+top_5 <- categorical_data[rev(order(categorical_data$total)),]
+top_5 <- top_5[1:5,]
+top_5 <- top_5['state']
+
+categorical_data <- data %>% select(state, district, total) %>% group_by(district, state) %>% summarise(total = sum(total))
+
+```
+
+
+
+```{r, fig.width=12,fig.height=14, warning=FALSE,  echo=FALSE}
+
+for (i in 1:length(unlist(top_5))){
+  #print()
+  options(repr.plot.width = 1, repr.plot.height = 0.75)
+  temp <-  categorical_data[categorical_data$state == as.character(top_5[i,]),]
+  temp <-  temp[temp$district != "TOTAL",]
+
+  print(ggplot(temp, aes(x=total, y=district, fill=total)) +
+  geom_bar(stat="identity",  position = position_dodge(width=0.01),size = 2.5,  width=0.3) + 
+  theme(axis.text.y = element_text(size=8)) +
+  geom_text(aes(x = total, y = district, label = total, hjust = -0.2)) + 
+  labs(x ="# of Crimes", y = "District", title = as.character(top_5[i,]), fill = "Total Crimes" ) +
+  scale_fill_gradient(low="white", high="red")) + guides(fill=guide_legend("Total Crimes"))
+
+  
+  
+  
+  
+  }
+```
+
+We can observe 
+
+Indore in Madhya Pradesh,
+Sitapur, meerut, Lucknow, Kanpur Nagar, Gaziabad, Bareilly, Agra in Uttar Pradesh,
+Pune, Mumbai in Maharashtra,
+Karim Nagar in Andhra Pradesh are having the most relative crimes in the respective state,
+and almost all district in Delhi
+
+So public services body which deals with the child protection and rights issue should focus more on these districts. Certain operation can also be launched where we can try to find the root cause of these crimes more on these areas.
+
+*Reason :* The color and the number can easily signify the crime rate and can easily show the district which are having most number of crimes
+
+Now we will try to look at comparison between different states and analyze how situation are from 2001 - 2013
+
+```{r,include=FALSE,warning=FALSE,message=FALSE,  echo=FALSE}
+#Data prepration of line plot
+
+temp <- data %>% select(state, year, infanticid, murder, rape, kidnapping, foeticide, abetment_of_suicide, abandonment, procuration_of_girls, buying_girls, selling_girls, child_marriage, other_crimes) %>% group_by(state, year) %>% summarise(infanticid = sum(infanticid),  murder = sum( murder), rape = sum(rape), kidnapping = sum(kidnapping), foeticide = sum(foeticide), abetment_of_suicide = sum(abetment_of_suicide), abandonment = sum(abandonment), procuration_of_girls = sum(procuration_of_girls), buying_girls = sum(buying_girls), selling_girls = sum(selling_girls), child_marriage = sum(child_marriage), other_crimes = sum(other_crimes))
+
+temp2 <- temp[temp$year == 2001,]
+temp2 <- rbind(temp2, temp[temp$year == 2013,])
+```
+
+
+
+```{r,include=FALSE,warning=FALSE,message=FALSE,  echo=FALSE}
+slope_data <- Slope_Graph_fun(temp2, "MADHYA PRADESH")
+
+
+
+
+name <- c("infanticid", "murder", "rape", "kidnapping", "foeticide", "abetment_of_suicide", "abandonment", "procuration_of_girls", "buying_girls", "selling_girls", "child_marriage", "other_crimes")
+
+
+title_name <- c("Infanticid", "Murder", "Rape", "Kidnapping", "Foeticide", "Abetment of suicide", "Abandonment", "Procuration of girls", "Buying Girls", "Selling Girls", "Child Marriage", "Other crimes")
+
+```
+
+
+
+```{r, fig.width=12,fig.height=10, message=FALSE, warning=F,  echo=FALSE}
+total_data <- data %>% select(state, year, total) %>% group_by(state, year) %>% summarise(total = sum(total))
+#total_data <- total_data[rev(order(total_data$total)),]
+
+#total_data <- head(total_data, 5)
+ggplot(data = total_data, mapping = aes(x = year, y = total)) + geom_line(mapping = aes(color = state), alpha = 0.9, size = 1.5, linetype = 1) + labs(title = "Total Crimes Scenario in India", x = "Year" , y = "Count") +theme_bw() +theme(legend.position="bottom") 
+#geom_dl(aes(label=state), method="last.points")
+  
+```
+
+
+As we can notice, even though the Madhya Pradesh was the highest committed crime state but the situation is detoriated in Uttar Pradesh, Madhya Pradesh, Delhi, Maharashtra, Chattishgarh in time.
+
+*Reason :* Since this is not much satisfying to look we need some crime wise details in each state.
+
+Let us look at which state is not able to control which type of crime in the time
+
+```{r, fig.width=12, fig.height=10, echo=FALSE, message=FALSE}
+
+for (i in (1:length(name))){
+  tit = paste("Summary of ", title_name[i], sep=" ")
+  tit = paste(tit, "in Each State", sep = " ")
+  print(ggplot(data = temp, mapping = aes_string(x = "year", y = name[i])) + geom_line() + facet_wrap(~state) + labs(title = tit, x = "Year" , y = "Count") + theme_bw())
+}
+```
+
+
+```{r, fig.width=12,fig.height=10, message=FALSE, warning=F,  echo=FALSE , include=FALSE}
+file3 <- file3[order(file3$State),]
+file4 <- file4[order(file4$States),]
+file3 <- file3[file3$State != "LADAKH",]
+```
+
+```{r, fig.width=12,fig.height=10, message=FALSE, warning=F,  echo=FALSE}
+correlation_data <- data %>% select(state, total) %>% group_by(state) %>% summarise(total = sum(total))
+correlation_data['Population'] <- file3$Population_Millions
+correlation_data['Literacy'] <- as.double(file4$Avg)
+#correlation_data
+
+```
+```{r, fig.width=12,fig.height=10, message=FALSE, warning=F,  echo=FALSE}
+ggplot(data = correlation_data, aes(x= Population, y= Literacy, size=total, color=state)) +
+    geom_point(alpha=0.5) +
+    scale_size(range = c(.1, 24), name="Population (Millions)") + labs(title = "State comparison on crimes~Literacy~Population") + guides(color=guide_legend("States"))
+```
+
+*Reason : *This graph is used to show if there is a co-relation between any states literacy and the population on crimes. 
+
+
+# Thank You
+
+
+## **References:**
+
+*Data Source*
+
+https://www.kaggle.com/rajanand/crime-in-india
+
+*Link used*
+
+
+
+https://en.wikipedia.org/wiki/List_of_Indian_states_and_union_territories_by_literacy_rate
+
+
+https://edm.niti.gov.in/?dataKey=energyBalance
+
+
+https://www.nipccd.nic.in/file/reports/handbk18.pdf
+
+
+https://ncrb.gov.in/sites/default/files/crime_in_india_table_additional_table_chapter_reports/Chapter%206_2010.pdf
+
+
+https://en.wikipedia.org/wiki/Law_of_India
+
+
+https://en.wikipedia.org/wiki/India
